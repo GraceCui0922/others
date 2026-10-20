@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Decision Engine Deployment Discussion</title>
+<style>
+:root{
+  --navy:#0b1f5b; --blue:#1677ff; --bluebg:#eaf3ff; --ink:#172033;
+  --muted:#657089; --line:#d9e1ee; --bg:#f6f8fc; --green:#0a8f5b;
+  --greenbg:#eaf8f1; --amber:#b56a00; --amberbg:#fff6e6; --purple:#6e4bd1;
+  --purplebg:#f2efff; --redbg:#fff0f0;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,"Segoe UI",Arial,sans-serif;color:var(--ink);background:var(--bg)}
+.page{max-width:1440px;margin:0 auto;padding:36px 42px 46px}
+.eyebrow{color:var(--blue);font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px}
+h1{margin:0;font-size:34px;line-height:1.15;color:var(--navy);letter-spacing:-.02em}
+.subtitle{margin-top:10px;color:var(--muted);font-size:15px;line-height:1.6;max-width:1100px}
+.objective{margin:22px 0 26px;padding:15px 18px;background:white;border:1px solid var(--line);border-left:4px solid var(--blue);border-radius:10px;font-size:14px;line-height:1.55}
+.section{margin-top:25px}
+.section-title{display:flex;align-items:center;gap:10px;margin-bottom:12px;color:var(--navy);font-size:16px;font-weight:800}
+.num{width:26px;height:26px;border-radius:8px;background:var(--navy);color:white;display:grid;place-items:center;font-size:12px;font-weight:800}
+.workflow-shell{background:white;border:1px solid var(--line);border-radius:14px;padding:19px}
+.workflow{display:grid;grid-template-columns:1.1fr 34px 1fr 34px 1.45fr 34px 1fr 34px 1fr;align-items:center;gap:3px}
+.box{min-height:94px;border:1px solid var(--line);border-radius:12px;padding:13px 14px;background:#fff}
+.box.blue{background:var(--bluebg);border-color:#bcd8ff}
+.box.purple{background:var(--purplebg);border-color:#d5cbff}
+.box.green{background:var(--greenbg);border-color:#bfe8d6}
+.box.amber{background:var(--amberbg);border-color:#f2d8a4}
+.box-title{font-size:13px;font-weight:800;color:var(--navy);margin-bottom:6px}
+.box-text{font-size:12px;line-height:1.55;color:#4f5b72}
+.arrow{color:#8ca0bc;text-align:center;font-size:24px}
+.control-plane{margin-top:12px;padding:11px 14px;border-radius:10px;border:1px dashed #9fb1cb;color:#46546c;background:#fafcff;font-size:12px;line-height:1.5}
+.control-plane strong{color:var(--navy)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.card{background:white;border:1px solid var(--line);border-radius:14px;padding:18px}
+.card h3{margin:0 0 10px;color:var(--navy);font-size:15px}
+.card p{margin:0;color:var(--muted);font-size:13px;line-height:1.55}
+ul{margin:10px 0 0 18px;padding:0}
+li{margin:6px 0;font-size:13px;line-height:1.45;color:#46546c}
+.pain{background:var(--redbg);border-color:#f1c9c9}
+table{width:100%;border-collapse:collapse;background:white;border:1px solid var(--line);border-radius:14px;overflow:hidden;font-size:12.5px}
+th{background:#f0f4fa;color:var(--navy);font-weight:800;text-align:left;padding:11px 12px;border-bottom:1px solid var(--line)}
+td{padding:10px 12px;vertical-align:top;border-bottom:1px solid #edf1f6;line-height:1.45}
+tr:last-child td{border-bottom:none}
+.tag{display:inline-block;padding:3px 7px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.03em}
+.tag.green{background:var(--greenbg);color:var(--green)}
+.tag.blue{background:var(--bluebg);color:var(--blue)}
+.tag.amber{background:var(--amberbg);color:var(--amber)}
+.tag.purple{background:var(--purplebg);color:var(--purple)}
+.question-box{background:linear-gradient(135deg,#0b1f5b,#143b93);color:white;border-radius:14px;padding:20px 22px}
+.question-box h3{margin:0 0 10px;font-size:17px}
+.question-box ol{margin:0;padding-left:20px}
+.question-box li{color:#ecf3ff;margin:8px 0;line-height:1.45}
+.footer{margin-top:22px;color:#8a95a9;font-size:11px;text-align:right}
+@media(max-width:1000px){.workflow{grid-template-columns:1fr}.arrow{transform:rotate(90deg)}.grid2{grid-template-columns:1fr}.page{padding:24px 18px}}
+@media print{body{background:white}.page{max-width:none;padding:18px}}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="eyebrow">Decision Engine · Deployment Architecture Discussion</div>
+  <h1>Dataiku-native deployment vs. Python Server + Dataiku LLM Mesh</h1>
+  <div class="subtitle">
+    Purpose: provide enough architecture context for a Dataiku expert to recommend the simplest and most governable deployment model.
+    The business logic is already prototyped locally; the open question is where runtime, validation UI and operating controls should live.
+  </div>
+
+  <div class="objective">
+    <strong>Discussion objective.</strong>
+    We are not asking Dataiku to redesign the Decision Engine. We want to determine whether to
+    <strong>(A) decompose and deploy it natively inside Dataiku</strong>, or
+    <strong>(B) keep it as a self-contained Python application on a corporate Python Server and call Dataiku LLM Mesh remotely</strong>,
+    while preserving governance, permissions, validation interfaces and auditability.
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="num">1</span>High-level Decision Engine workflow</div>
+    <div class="workflow-shell">
+      <div class="workflow">
+        <div class="box blue">
+          <div class="box-title">Data</div>
+          <div class="box-text">Mock datasets today<br>Production datasets later<br>Historical client & transaction data</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="box">
+          <div class="box-title">Evidence / Indicators</div>
+          <div class="box-text">Standardise raw facts, derive measurable indicators and quality metadata.</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="box purple">
+          <div class="box-title">Intelligence Nodes</div>
+          <div class="box-text">Trait · State · Signal<br>LLM-assisted research + deterministic/statistical computation</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="box green">
+          <div class="box-title">Need / Opportunity</div>
+          <div class="box-text">Translate evidence into governed client need and qualified opportunity hypotheses.</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="box amber">
+          <div class="box-title">Action / Outcome</div>
+          <div class="box-text">Candidate actions → arbitration → engagement → outcome learning.</div>
+        </div>
+      </div>
+      <div class="control-plane">
+        <strong>Cross-cutting control plane:</strong>
+        every node requires validation metrics, review queue, run manifest/versioning, human review entry points and visual diagnostics.
+        Prompts, mappings and parameters will evolve during production validation.
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="num">2</span>Current implementation status & pain points</div>
+    <div class="grid2">
+      <div class="card">
+        <h3>What already works locally</h3>
+        <ul>
+          <li>Large Python agent framework already runs with local mock datasets.</li>
+          <li>Prompts, Python logic, orchestration and validation logic can be debugged together.</li>
+          <li>Local UI / dashboard can be developed as one integrated application.</li>
+          <li>Target design is to replace mock datasets with production datasets without rewriting core logic.</li>
+        </ul>
+      </div>
+      <div class="card pain">
+        <h3>Why Dataiku migration may become operationally heavy</h3>
+        <ul>
+          <li>Python package/code may need to move into <strong>Project Libraries / Code Environment</strong>.</li>
+          <li>Execution logic may need to be split into multiple <strong>Flow recipes</strong>.</li>
+          <li>Datasets, configs, prompts and artifacts may live in different Dataiku components.</li>
+          <li>Validation and review may require separate datasets, dashboards or web interfaces.</li>
+          <li>Frequent local code/prompt changes may create manual deployment and synchronisation work.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="num">3</span>Two deployment patterns to evaluate</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:18%">Area</th>
+          <th style="width:41%">Option A · Dataiku-native</th>
+          <th style="width:41%">Option B · Python Server + Dataiku LLM Mesh</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Runtime</strong></td>
+          <td><span class="tag blue">DATAIKU</span><br>Python libraries + recipes/notebooks/scenarios inside DSS.</td>
+          <td><span class="tag purple">PYTHON SERVER</span><br>Entire application runs as one Python service/app.</td>
+        </tr>
+        <tr>
+          <td><strong>LLM access</strong></td>
+          <td>Directly through Dataiku LLM Mesh from DSS runtime.</td>
+          <td>Python Server remotely calls Dataiku LLM Mesh, subject to API/network/auth feasibility.</td>
+        </tr>
+        <tr>
+          <td><strong>Production data</strong></td>
+          <td>Native Dataiku datasets/connections and Flow lineage.</td>
+          <td>Need a governed way for Python Server to read production data or receive prepared datasets.</td>
+        </tr>
+        <tr>
+          <td><strong>UI / validation</strong></td>
+          <td>Datasets + charts + dashboards / possible web UI; may be split across Dataiku components.</td>
+          <td>One integrated custom dashboard/UI can be built and tested locally, then deployed with the server.</td>
+        </tr>
+        <tr>
+          <td><strong>Iteration speed</strong></td>
+          <td>Potentially slower if every prompt/code/UI change requires several Dataiku assets to be updated.</td>
+          <td>Potentially faster for a complex agent application because code + UI + harness remain one deployable unit.</td>
+        </tr>
+        <tr>
+          <td><strong>Governance / permission</strong></td>
+          <td><span class="tag green">STRONG</span><br>Data, LLM access, project permissions, lineage and execution remain in the Dataiku governance boundary.</td>
+          <td><span class="tag amber">TO CONFIRM</span><br>Requires governance for server access, service identity, secrets, network, audit and Dataiku API permissions.</td>
+        </tr>
+        <tr>
+          <td><strong>Operating model</strong></td>
+          <td>More Dataiku-native and easier for platform governance/support.</td>
+          <td>More software-engineering-native and potentially easier for rapid agent/UI evolution.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="num">4</span>Non-negotiable requirements</div>
+    <div class="grid2">
+      <div class="card">
+        <h3>Governance & security</h3>
+        <ul>
+          <li>Production data access must remain controlled and auditable.</li>
+          <li>LLM calls must use the approved Dataiku LLM Mesh rather than unmanaged provider keys.</li>
+          <li>Node-level permissions, run logs and version traceability are required.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Research / validation usability</h3>
+        <ul>
+          <li>Every node needs a visible validation interface and review harness.</li>
+          <li>Users must be able to inspect outputs, failures, distributions and review queues.</li>
+          <li>Prompt / mapping / parameter changes need clear edit points and fast re-run / comparison.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><span class="num">5</span>Questions for the Dataiku expert</div>
+    <div class="question-box">
+      <h3>We would like your recommendation on the deployment boundary.</h3>
+      <ol>
+        <li>Can a corporate Python Server call <strong>Dataiku LLM Mesh</strong> reliably through an approved API? What authentication, network and service-account model would be required?</li>
+        <li>If we stay Dataiku-native, what is the cleanest pattern for a <strong>large multi-node Python agent framework</strong>: Project Library + a small number of recipes, or many node-level recipes?</li>
+        <li>For node-by-node validation, human review and editable controls, should we use <strong>Dataiku dashboards, webapps, datasets, scenarios</strong>, or another pattern?</li>
+        <li>How much manual deployment/synchronisation is required when code, prompts and configs are iterated frequently?</li>
+        <li>Can we establish a practical <strong>local development → Git/CI → Dataiku deployment</strong> workflow so Dataiku does not become a manual copy/paste environment?</li>
+        <li>From a governance and support perspective, would you recommend <strong>Dataiku-native, Python Server, or a hybrid</strong> where Dataiku owns data/LLM/governance and Python Server owns the application runtime/UI?</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="footer">Working discussion document · decision_engine_1014_v1</div>
+</div>
+</body>
+</html>
